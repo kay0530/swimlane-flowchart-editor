@@ -137,7 +137,15 @@ function FlowCanvasInner() {
   }, [computedNodes]);
 
   useEffect(() => {
-    setRfEdges(toReactFlowEdges(storeEdges, edgeType, rfNodes, smoothEdges, jumpOverMode));
+    setRfEdges((prev) => {
+      const newEdges = toReactFlowEdges(storeEdges, edgeType, rfNodes, smoothEdges, jumpOverMode);
+      // Preserve selection state from the previous edges
+      const selectedIds = new Set(prev.filter((e) => e.selected).map((e) => e.id));
+      if (selectedIds.size === 0) return newEdges;
+      return newEdges.map((e) =>
+        selectedIds.has(e.id) ? { ...e, selected: true } : e,
+      );
+    });
   }, [storeEdges, edgeType, rfNodes, jumpOverMode]);
 
   // Handle node changes (drag, select, remove) locally
