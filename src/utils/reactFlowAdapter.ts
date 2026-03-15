@@ -104,7 +104,7 @@ export function toReactFlowEdges(
         const targetX = targetCoords.x;
         const targetY = targetCoords.y;
 
-        const dynamicOffset = computeOffset(sourceX, sourceY, targetX, targetY);
+        const dynamicOffset = edge.bendOffset ?? computeOffset(sourceX, sourceY, targetX, targetY);
         const [path] = getSmoothStepPath({
           sourceX,
           sourceY,
@@ -150,8 +150,8 @@ export function toReactFlowEdges(
         ? { type: toMarkerType(markerEndStyle), color }
         : undefined,
       data: edgeType === "jumpOver"
-        ? ({ allEdgePaths: allEdgePaths ?? [], smoothEdges: smoothEdges ?? false, jumpOverMode: jumpOverMode ?? "later" } satisfies JumpOverEdgeData)
-        : undefined,
+        ? ({ allEdgePaths: allEdgePaths ?? [], smoothEdges: smoothEdges ?? false, jumpOverMode: jumpOverMode ?? "later", bendOffset: edge.bendOffset } satisfies JumpOverEdgeData)
+        : { bendOffset: edge.bendOffset },
     };
   });
 }
@@ -163,10 +163,16 @@ export function toReactFlowEdges(
 function computeOffset(sourceX: number, sourceY: number, targetX: number, targetY: number): number {
   const dx = Math.abs(sourceX - targetX);
   const dy = Math.abs(sourceY - targetY);
-  // If nearly aligned, use minimal offset to avoid detour
-  if (dx < 10) return Math.min(5, dy / 4);
-  if (dy < 10) return Math.min(5, dx / 4);
-  return 20;
+
+  // Nearly vertically aligned - minimal offset for straight path
+  if (dx < 20) return 0;
+  // Nearly horizontally aligned - minimal offset for straight path
+  if (dy < 20) return 0;
+  // Moderately aligned - small offset
+  if (dx < 50) return Math.min(5, dx / 4);
+  if (dy < 50) return Math.min(5, dy / 4);
+  // Far apart - standard offset
+  return Math.min(20, Math.min(dx, dy) / 4);
 }
 
 /**

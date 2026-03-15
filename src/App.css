@@ -182,3 +182,23 @@
     border-right-color: var(--border);
   }
 }
+
+/* Edge selection highlighting */
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 3 !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-interaction {
+  stroke-width: 20;
+}
+
+/* Bend handle visibility - always visible but subtle, brighter on hover */
+.bend-handle {
+  opacity: 0.5;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.bend-handle:hover {
+  opacity: 1;
+  box-shadow: 0 0 4px rgba(255, 215, 0, 0.6);
+}

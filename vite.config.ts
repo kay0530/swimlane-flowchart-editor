@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
 export default defineConfig({
-  base: '/swimlane-flowchart-editor/',
+  base: process.env.GITHUB_ACTIONS ? '/swimlane-flowchart-editor/' : '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

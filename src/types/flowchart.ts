@@ -101,4 +101,6 @@ export interface FlowEdge {
   strokeWidth?: number;
   markerStart?: MarkerStyle;
   markerEnd?: MarkerStyle;
+  /** Custom bend offset - controls where the edge makes its turn. undefined = auto */
+  bendOffset?: number;
 }

@@ -33,7 +33,7 @@ const PALETTE_ITEMS: PaletteItem[] = [
   {
     type: "decision",
     preset: "decision",
-    label: "判定",
+    label: "分岐",
     style: STYLE_DECISION,
   },
   {
@@ -68,17 +68,18 @@ const PALETTE_ITEMS: PaletteItem[] = [
 function NodePreview({ item }: { item: PaletteItem }) {
   const { style } = item;
 
-  // Diamond shape for decision nodes
+  // Diamond shape for decision nodes – proper SVG diamond (wider than tall)
   if (style.shape === "diamond") {
     return (
-      <div className="flex items-center justify-center w-9 h-9">
-        <div
-          className="w-6 h-6 rotate-45"
-          style={{
-            border: `${style.borderWidth || 1}px ${style.borderStyle} ${style.borderColor}`,
-            backgroundColor: style.backgroundColor,
-          }}
-        />
+      <div className="flex items-center justify-center w-12 h-9">
+        <svg width="44" height="32" viewBox="0 0 44 32">
+          <polygon
+            points="22,1 43,16 22,31 1,16"
+            fill={style.backgroundColor}
+            stroke={style.borderColor}
+            strokeWidth={style.borderWidth || 1}
+          />
+        </svg>
       </div>
     );
   }

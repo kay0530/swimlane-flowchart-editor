@@ -393,6 +393,31 @@ function EdgeProperties({ edge }: { edge: FlowEdge }) {
         />
         <Label htmlFor="edge-animated">アニメーション</Label>
       </div>
+
+      {/* Bend offset */}
+      <div className="space-y-1">
+        <Label>曲がり位置</Label>
+        <div className="flex items-center gap-2">
+          <input
+            type="range"
+            min={0}
+            max={200}
+            value={edge.bendOffset ?? 20}
+            onChange={(e) => handleUpdate({ bendOffset: Number(e.target.value) })}
+            className="flex-1 h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          />
+          <span className="text-xs text-zinc-500 w-8 text-right">{edge.bendOffset ?? 20}</span>
+        </div>
+        {edge.bendOffset !== undefined && (
+          <button
+            type="button"
+            className="text-xs text-blue-500 hover:underline"
+            onClick={() => handleUpdate({ bendOffset: undefined })}
+          >
+            自動に戻す
+          </button>
+        )}
+      </div>
     </div>
   );
 }

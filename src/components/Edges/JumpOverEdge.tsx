@@ -1,10 +1,12 @@
-import { memo, useMemo } from "react";
+import { memo, useCallback, useMemo } from "react";
 import {
   getSmoothStepPath,
   BaseEdge,
   EdgeLabelRenderer,
+  useReactFlow,
   type EdgeProps,
 } from "@xyflow/react";
+import { useFlowchartStore } from "../../store/useFlowchartStore";
 
 // ---------- Types ----------
 
@@ -17,6 +19,8 @@ export type JumpOverEdgeData = {
   smoothEdges?: boolean;
   /** Which edge should jump over: "later" (default), "horizontal", or "vertical" */
   jumpOverMode?: JumpOverMode;
+  /** Custom bend offset - controls where the edge makes its turn */
+  bendOffset?: number;
   [key: string]: unknown;
 };
 
@@ -35,10 +39,16 @@ const SMOOTH_STEP_BORDER_RADIUS = 8;
 function computeOffset(sourceX: number, sourceY: number, targetX: number, targetY: number): number {
   const dx = Math.abs(sourceX - targetX);
   const dy = Math.abs(sourceY - targetY);
-  // If nearly aligned, use minimal offset to avoid detour
-  if (dx < 10) return Math.min(5, dy / 4);
-  if (dy < 10) return Math.min(5, dx / 4);
-  return 20;
+
+  // Nearly vertically aligned - minimal offset for straight path
+  if (dx < 20) return 0;
+  // Nearly horizontally aligned - minimal offset for straight path
+  if (dy < 20) return 0;
+  // Moderately aligned - small offset
+  if (dx < 50) return Math.min(5, dx / 4);
+  if (dy < 50) return Math.min(5, dy / 4);
+  // Far apart - standard offset
+  return Math.min(20, Math.min(dx, dy) / 4);
 }
 
 /**
@@ -340,7 +350,9 @@ function JumpOverEdgeComponent({
   sourcePosition,
   targetPosition,
   style = {},
+  markerStart,
   markerEnd,
+  selected,
   label,
   labelStyle,
   labelShowBg,
@@ -352,7 +364,8 @@ function JumpOverEdgeComponent({
   // Compute the base path for this edge
   const edgeData = data as JumpOverEdgeData | undefined;
   const borderRadius = edgeData?.smoothEdges ? SMOOTH_STEP_BORDER_RADIUS : 0;
-  const dynamicOffset = computeOffset(sourceX, sourceY, targetX, targetY);
+  const autoOffset = computeOffset(sourceX, sourceY, targetX, targetY);
+  const dynamicOffset = edgeData?.bendOffset ?? autoOffset;
   const [basePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -363,6 +376,49 @@ function JumpOverEdgeComponent({
     borderRadius,
     offset: dynamicOffset,
   });
+
+  const updateEdge = useFlowchartStore((s) => s.updateEdge);
+  const { getZoom } = useReactFlow();
+
+  // Drag handler for the bend point handle
+  const onBendHandleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const startY = e.clientY;
+      const startX = e.clientX;
+      const startOffset = dynamicOffset;
+      const zoom = getZoom();
+      const isVerticalConnection = Math.abs(sourceX - targetX) < Math.abs(sourceY - targetY);
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        const rawDelta = isVerticalConnection
+          ? moveEvent.clientX - startX
+          : moveEvent.clientY - startY;
+        const delta = rawDelta / zoom;
+        const newOffset = Math.max(0, Math.min(200, startOffset + delta));
+        updateEdge(id, { bendOffset: newOffset });
+      };
+
+      const onMouseUp = () => {
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [dynamicOffset, sourceX, sourceY, targetX, targetY, updateEdge, id, getZoom],
+  );
+
+  // Double-click to reset to auto
+  const onBendHandleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      updateEdge(id, { bendOffset: undefined });
+    },
+    [updateEdge, id],
+  );
 
   // Build jump-over path
   const jumpOverMode: JumpOverMode = edgeData?.jumpOverMode ?? "later";
@@ -427,13 +483,34 @@ function JumpOverEdgeComponent({
 
   return (
     <>
-      <BaseEdge path={finalPath} markerEnd={markerEnd} style={style} />
-      {label && (
-        <EdgeLabelRenderer>
+      <BaseEdge path={finalPath} markerStart={markerStart} markerEnd={markerEnd} style={style} />
+      <EdgeLabelRenderer>
+        {/* Yellow diamond bend handle - only visible when edge is selected */}
+        {selected && (
           <div
             style={{
               position: "absolute",
-              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px) rotate(45deg)`,
+              width: 10,
+              height: 10,
+              background: "#FFD700",
+              border: "1px solid #B8860B",
+              cursor: "move",
+              pointerEvents: "all",
+              zIndex: 10,
+            }}
+            className="nodrag nopan bend-handle"
+            onMouseDown={onBendHandleMouseDown}
+            onDoubleClick={onBendHandleDoubleClick}
+            title="ドラッグで曲がり位置を調整 / ダブルクリックで自動に戻す"
+          />
+        )}
+        {/* Edge label */}
+        {label && (
+          <div
+            style={{
+              position: "absolute",
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY + 16}px)`,
               fontSize: 12,
               fontWeight: 500,
               pointerEvents: "all",
@@ -448,8 +525,8 @@ function JumpOverEdgeComponent({
           >
             {label}
           </div>
-        </EdgeLabelRenderer>
-      )}
+        )}
+      </EdgeLabelRenderer>
     </>
   );
 }
